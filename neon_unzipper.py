@@ -72,11 +72,13 @@ def move_metadata(meta_source_path, meta_target_path):
             os.rename(meta_source_path + f, meta_target_path + f)
     print('done moving metadata from {}'.format(meta_source_path))
 
+'''
 def purge():
     """ this wipes everything away and  restores the directory to the state found in ../NEON_recovery."""
     path = '../../../../../Thesis_Sandbox'
     rmtree(path)
     os.mkdir(path)
+'''
 
 def fix_1_minute(f):
     """ changes file with '_1min' in them to have '_1_minute' for consistency """
