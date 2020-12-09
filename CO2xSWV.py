@@ -8,7 +8,7 @@ from tqdm import tqdm
 import glob
 
 # %%
-def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent', data_path='/media/data/NEON/CO2xSWV'):
+def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent', data_path='/home/jovyan/NEON/CO2xSWV_data'):
     '''TODO: make a docstring for this, and move it to neon_utils when all done'''
     base_url = 'https://data.neonscience.org/api/v0/'
     data_path = data_path.rstrip('/') + '/'
@@ -61,77 +61,3 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
                                 sink.write(handle.content)
                     
                     
-
-
-#%%
-sitecodes = ['BART', 'ABBY']
-productcodes = ['DP1.00095.001', 'DP1.00094.001']
-daterange = ['2020-09', '2020-11']
-fetch_data_from_NEON_API(sitecodes, productcodes, daterange=daterange)
-
-# %%
-data_path='/media/data/NEON/CO2xSWV'
-
-site = 'ABBY'
-soil_CO2 = glob.glob(f'{data_path}/*{site}*SCO2C_1_minute*.csv')
-soil_H2O = glob.glob(f'{data_path}/*{site}*SWS_1_minute*.csv')
-
-# make a df with date, and files for that date
-sc = set([f.split('.')[-4] for f in soil_CO2])
-sw = set([f.split('.')[-4] for f in soil_H2O])
-dates = list(sc & sw)
-dates.sort()
-c = []
-w = []
-for date in dates:
-    # each comprehension should return 1 filename
-    c.append([f for f in soil_CO2 if date in f][0])
-    w.append([f for f in soil_H2O if date in f][0])
-filedf = pd.DataFrame()
-filedf['date'] = dates
-filedf['CO2']  = c
-filedf['H2O']  = w
-
-
-# %%
-#for date in dates:
-#   row = filedf.loc[filedf.date==date]
-#   f = row['CO2'] 
-f = c[10]
-co2 = pd.read_csv(f, parse_dates=True, index_col='startDateTime')
-# Fail and pass columns are redundent, we will use the fails
-drops = [col for col in list(co2.columns) if 'Pass' in col]
-co2.drop(drops, axis='columns', inplace=True)
-# drop columns with bad quality flags
-x = len(co2)
-co2 = co2.loc[co2.finalQF == 0] 
-#if (x - len(co2)) / x > 0.2: continue
-print(f'dropped {100 * (x - len(co2)) / x}%')
-# now drop quality metric columns
-qm = [col for col in list(co2.columns) if 'QM' in col]
-qm = qm + [col for col in list(co2.columns) if 'QF' in col] + ['endDateTime']
-co2.drop(qm, axis='columns', inplace=True)
-#this following step should not be needed, but just in case
-co2.dropna(inplace=True)
-
-
-#%%
-#   f = row['H2O']
-f = w[-1]
-h2o = pd.read_csv(f, parse_dates=True, index_col='startDateTime')
-# Fail and pass columns are redundent, we will use the fails
-drops = [col for col in list(h2o.columns) if 'Pass' in col]
-h2o.drop(drops, axis='columns', inplace=True)
-# drop columns with bad quality flags
-x = len(h2o)
-h2o = h2o.loc[(h2o.VSWCFinalQFSciRvw != 2) & (h2o.VSICFinalQFSciRvw != 2)]
-#if (x - len(h2o)) / x > 0.2: continue
-print(f'dropped {100 * (x - len(h2o)) / x}%\nbut note that we are using FinalQFSciRvw != 2 rather than using FinalQF == 0 as our loc criteria')
-# now drop quality metric columns
-qm = [col for col in list(h2o.columns) if 'QM' in col]
-qm = qm + [col for col in list(h2o.columns) if 'QF' in col] + ['endDateTime']
-h2o.drop(qm, axis='columns', inplace=True)
-#this following step should not be needed, but just in case
-h2o.dropna(inplace=True)
-
-# %%

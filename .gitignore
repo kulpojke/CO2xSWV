@@ -1,0 +1,11 @@
+*
+
+# But not these files...
+!.gitignore
+!*.py
+!*.jl
+!*.sh
+!*.ipynb
+!*.r
+!*.csv
+!*.md
