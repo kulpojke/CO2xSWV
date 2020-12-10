@@ -1,5 +1,3 @@
-#/* cSpell:disable */
-#%%
 import pandas as pd
 import requests
 import hashlib
@@ -7,7 +5,7 @@ import os
 from tqdm import tqdm  
 import glob
 
-# %%
+
 def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent', data_path='/home/jovyan/NEON/CO2xSWV_data'):
     '''TODO: make a docstring for this, and move it to neon_utils when all done'''
     base_url = 'https://data.neonscience.org/api/v0/'
