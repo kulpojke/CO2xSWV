@@ -11,6 +11,7 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
     '''TODO: make a docstring for this, and move it to neon_utils when all done'''
     base_url = 'https://data.neonscience.org/api/v0/'
     data_path = data_path.rstrip('/') + '/'
+    lazy = []
     for site in sitecodes:
         for product in productcodes:
             #this part determines which dates are available for the site/product
@@ -30,12 +31,12 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
                 except AssertionError:
                     print('daterange must be a list, e.g. [\'2020-10\', \'2019-10\']')
                     return(None)
-            lazy = []
+            
             for date in dates:
                 result = dload(product, site, date, base_url, data_path)
                 lazy.append(result)
-            with ProgressBar():
-                dask.compute(*lazy)
+    with ProgressBar():
+        dask.compute(*lazy)
         
 @delayed                
 def dload(product, site, date, base_url, data_path):                     
