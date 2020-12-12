@@ -14,6 +14,8 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
     '''
     base_url = 'https://data.neonscience.org/api/v0/'
     data_path = data_path.rstrip('/') + '/'
+    for product in productcodes:
+        sensor_positions(product, site, date, data_path)
     lazy = []
     for site in sitecodes:
         for product in productcodes:
@@ -70,7 +72,49 @@ def dload(product, site, date, base_url, data_path):
                     sink.write(handle.content)
 
 # ------------------------------------------------------------------------------------
-                    
+
+def sensor_positions(product, site, date, data_path):
+    attempts = 0
+    success = False
+    while (attempts < 4) & (success == False):
+        success = download_sensor_positions(product, site, date, data_path)
+        attempts = attempts + 1
+        
+
+def download_sensor_positions(product, site, date, data_path):
+    # find the url and name of sensor_positions file
+    path = data_path.rstrip('/')
+    base_url = 'https://data.neonscience.org/api/v0/'
+    url = f'{base_url}data/{product}/{site}/{date}'
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise Exception(f'Bad {url} returns {response.statuscode}')
+    name, url, md5 = find_sensor_positions_url(response)
+    # download and save the sensor positions file 
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise Exception(f'Bad url for {name}')
+    # check the md5
+    if md5 == hashlib.md5(response.content).hexdigest():
+        fname = path + '/' + name
+        with open(fname, 'wb') as sink:
+            sink.write(response.content)
+            return(True)
+    else:
+        return(False)
+        
+    
+def find_sensor_positions_url(response):
+    '''Find url for sensor_positions file from NEON API response'''
+    data = response.json()['data']
+    for f in data['files']:
+        if 'sensor_positions' in f['name']:
+            return(f['name'], f['url'], f['md5'])               
+    raise Exception(f'No sensor_positions files exists for {product} | {site} | {date}')
+
+# ------------------------------------------------------------------------------------    
+    
+    
 @delayed
 def make_df(hor, ver, date, site, data_path):
     '''Reads  NEON 1 minute cvs for:
