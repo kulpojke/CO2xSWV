@@ -9,7 +9,9 @@ import dask
 from dask.diagnostics import ProgressBar
 
 def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent', data_path='/home/jovyan/NEON/CO2xSWV_data'):
-    '''TODO: make a docstring for this, and move it to neon_utils when all done'''
+    '''TODO: make a docstring for this, and move it to neon_utils when all done.
+    
+    '''
     base_url = 'https://data.neonscience.org/api/v0/'
     data_path = data_path.rstrip('/') + '/'
     lazy = []
@@ -150,3 +152,4 @@ def make_df(hor, ver, date, site, data_path):
     return(co2)
 
 # ------------------------------------------------------------------------------------
+
