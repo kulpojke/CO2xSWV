@@ -14,8 +14,6 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
     '''
     base_url = 'https://data.neonscience.org/api/v0/'
     data_path = data_path.rstrip('/') + '/'
-    for product in productcodes:
-        sensor_positions(product, site, date, data_path)
     lazy = []
     for site in sitecodes:
         #this part determines which dates are available for the site/product
@@ -36,8 +34,13 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
                 return(None)
 
         for date in dates:
-            result = delayed(dload)(product, site, date, base_url, data_path)
-            lazy.append(result)
+            for product in productcodes:
+                try:
+                    sensor_positions(product, site, date, data_path)
+                except:
+                    pass
+                result = delayed(dload)(product, site, date, base_url, data_path)
+                lazy.append(result)
     with ProgressBar():
         dask.compute(*lazy)
         
@@ -123,7 +126,7 @@ def find_sensor_positions_url(response):
     for f in data['files']:
         if 'sensor_positions' in f['name']:
             return(f['name'], f['url'], f['md5'])               
-    raise Exception(f'No sensor_positions files exists for {product} | {site} | {date}')
+    raise Exception('No sensor_positions file!')
 
 # ------------------------------------------------------------------------------------    
     
