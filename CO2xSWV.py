@@ -18,32 +18,45 @@ def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent',
         sensor_positions(product, site, date, data_path)
     lazy = []
     for site in sitecodes:
-        for product in productcodes:
-            #this part determines which dates are available for the site/product
-            url = f'{base_url}sites/{site}'
-            response = requests.get(url)
-            data = response.json()['data']
-            dates = data['dataProducts'][0]['availableMonths']
-            if daterange == 'most recent':
-                # get the most recent date
-                dates = [max(dates)]
-            else:
-                try:
-                    # get dates in the range
-                    assert isinstance(daterange,list)
-                    begin, terminate = min(daterange), max(daterange)
-                    dates = [d  for d in dates if (d >= begin) and (d <= terminate)]                 
-                except AssertionError:
-                    print('daterange must be a list, e.g. [\'2020-10\', \'2019-10\']')
-                    return(None)
-            
-            for date in dates:
-                result = dload(product, site, date, base_url, data_path)
-                lazy.append(result)
+        #this part determines which dates are available for the site/product
+        dates = get_common_dates(site, productcodes, base_url)
+        if daterange == 'most recent':
+            # get the most recent date
+            dates = [max(dates)]
+        elif daterange == 'all':
+            pass
+        else:
+            try:
+                # get dates in the range
+                assert isinstance(daterange,list)
+                begin, terminate = min(daterange), max(daterange)
+                dates = [d  for d in dates if (d >= begin) and (d <= terminate)]                 
+            except AssertionError:
+                print('daterange must be a list, e.g. [\'2020-10\', \'2019-10\']')
+                return(None)
+
+        for date in dates:
+            result = delayed(dload)(product, site, date, base_url, data_path)
+            lazy.append(result)
     with ProgressBar():
         dask.compute(*lazy)
         
-@delayed                
+        
+        
+def get_common_dates(site, products, base_url):        
+    dates_list = []
+    for product in products:
+        #this part determines which dates are available for the site/product
+        url = f'{base_url}sites/{site}'
+        response = requests.get(url)
+        data = response.json()['data']
+        dates = set(data['dataProducts'][0]['availableMonths'])
+        dates_list.append(dates)
+    dates = list(set.intersection(*dates_list))
+    return(dates)
+        
+        
+        
 def dload(product, site, date, base_url, data_path):                     
     url = f'{base_url}data/{product}/{site}/{date}'
     response = requests.get(url)
@@ -115,7 +128,7 @@ def find_sensor_positions_url(response):
 # ------------------------------------------------------------------------------------    
     
     
-@delayed
+
 def make_df(hor, ver, date, site, data_path):
     '''Reads  NEON 1 minute cvs for:
            DP1.00094.001  (Soil CO2 concentrations)
@@ -123,8 +136,7 @@ def make_df(hor, ver, date, site, data_path):
            DP1.00095.001  (soil volumetric water content and salintiy)
        drops entries with bad finalQF flags,
        drops quality metric columns,
-       and returns a delayed dataframe of merged data
-       (use dask.compute() to make into pandas df).
+       and returns a  dataframe of merged data.
     
     Arguments:
     hor  -- String - horizontal sensor position (HOR in the 
