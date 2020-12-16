@@ -8,6 +8,12 @@ from dask import delayed
 import dask
 from dask.diagnostics import ProgressBar
 
+
+# ------------------------------------------------------------------------------------
+# functions related to downloading from the API
+
+
+
 def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent', data_path='/home/jovyan/NEON/CO2xSWV_data'):
     '''TODO: make a docstring for this, and move it to neon_utils when all done.
     
@@ -87,7 +93,6 @@ def dload(product, site, date, base_url, data_path):
                 with open(fname, 'wb') as sink:
                     sink.write(handle.content)
 
-# ------------------------------------------------------------------------------------
 
 def sensor_positions(product, site, date, data_path):
     attempts = 0
@@ -129,8 +134,54 @@ def find_sensor_positions_url(response):
     raise Exception('No sensor_positions file!')
 
 # ------------------------------------------------------------------------------------    
+# functions related to selecting data and creating dataframes
+
+
+def find_HOR_VER(site, data_path):
+    # glob files for the site
+    data_path='/home/jovyan/NEON/CO2xSWV_data'
+    minute = '[0-9]' * 3 + '.' + '[0-9]' * 3 + '.001' 
+    soil_CO2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{minute}.*csv')
+    soil_H2O = glob.glob(f'{data_path}/*{site}.DP1.00094.001.{minute}.*csv')
+    soil_T   = glob.glob(f'{data_path}/*{site}.DP1.00041.001.{minute}.*csv')
+    # make lists with date, and files for that date
+    sc = set([f.split('.')[-4] for f in soil_CO2])
+    sw = set([f.split('.')[-4] for f in soil_H2O])
+    st = set([f.split('.')[-4] for f in soil_T])
+    # find dates present in all data products
+    dates = list(sc & sw & st)
+    dates.sort()
+    horvers = []
     
+    for date in dates:
+        # make seperate lists of each product for the dates where all are present
+        cc = [f for f in soil_CO2 if date in f]
+        ww = [f for f in soil_H2O if date in f]
+        tt = [f for f in soil_T if date in f]
+        #find HOR and VER combinations for the date (e.g. '003501')
+        ccc = [''.join(f.split('.')[6:8]) for f in cc]
+        www = [''.join(f.split('.')[6:8]) for f in ww]
+        ttt = [''.join(f.split('.')[6:8]) for f in tt]
+        horver = list(set(ccc) & set(www) & set(ttt))
+        horvers.append(horver)
+
+    horver = set(horvers[0])   
+    for hv in horvers[1:]:
+        horver = horver & set(hv)
+    horver = list(horver)
+
+    hor = list(set([hv[:3] for hv in horver]))
+    hor.sort()
+    hor_ver = [[hv[:3], hv[3:]] for hv in horver]
+    horver = {key : [] for key in hor}
+    for key, val in hor_ver:
+        horver[key].append(val)
+
+    # horver is a dict all HOR-VER combinations available at  site
+    # its like {Hor : [z1, z2,...]}
+    return(horver)      
     
+  
 
 def make_df(hor, ver, date, site, data_path):
     '''Reads  NEON 1 minute cvs for:
@@ -151,10 +202,10 @@ def make_df(hor, ver, date, site, data_path):
     data_path -- String - path to data.
     '''
     # glob the filenames, only one gets globbed for each
-    hv_glob = hor + '.' + ver + '.' + ('[0-9]' * 3 )
-    co2 = glob.glob(f'{data_path}/*{site}*{hv_glob}*SCO2C_1_minute.{date}*.csv')[0]
-    h2o = glob.glob(f'{data_path}/*{site}*{hv_glob}*SWS_1_minute.{date}*.csv')[0]
-    t   = glob.glob(f'{data_path}/*{site}*{hv_glob}*ST_1_minute.{date}*.csv')[0]
+    minute = '[0-9]' * 3 + '.' + '[0-9]' * 3 + '.001' 
+    co2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{minute}.*csv')[0]
+    h2o = glob.glob(f'{data_path}/*{site}.DP1.00094.001.{minute}.*csv')[0]
+    t   = glob.glob(f'{data_path}/*{site}.DP1.00041.001.{minute}.*csv')[0]
 
     # make CO2 df
     co2 = pd.read_csv(co2, parse_dates=True, index_col='startDateTime')
