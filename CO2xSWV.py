@@ -258,9 +258,13 @@ def make_df(hor, ver, date, site, data_path):
     soil_T.dropna(inplace=True)
     
     # merge co2, h2o, soil_T into one df
+    l1 = len(co2)
     co2 = co2.merge(h2o, left_index=True, right_index=True)
+    l2 = len(co2)
     co2 = co2.merge(soil_T, left_index=True, right_index=True)
-    
+    l3 = len(co2)
+    print(f'{l1} --> {l2} --> {l3}')
+
     if len(co2) > 0:
         co2 = co2.resample('1h').mean()
            
