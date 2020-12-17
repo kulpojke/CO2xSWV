@@ -7,7 +7,7 @@ import glob
 from dask import delayed
 import dask
 from dask.diagnostics import ProgressBar
-
+#hi
 
 # ------------------------------------------------------------------------------------
 # functions related to downloading from the API
@@ -76,15 +76,20 @@ def dload(product, site, date, base_url, data_path):
         if ('expanded' in f['name']) & ('_1' in f['name']) & (f['name'].endswith('.csv')):                        
             attempts = 0 
             while attempts < 4:
-                # get the file 
-                handle = requests.get(f['url'])
-                #check the md5
-                md5 = hashlib.md5(handle.content).hexdigest()
-                if md5 == f['md5']:
-                    success = True
-                    attempts = 4
-                else:
-                    print(f'md5 mismatch on attempt {attempts}')
+                try:
+                    # get the file 
+                    handle = requests.get(f['url'])
+                    #check the md5
+                    md5 = hashlib.md5(handle.content).hexdigest()
+                    if md5 == f['md5']:
+                        success = True
+                        attempts = 4
+                    else:
+                        print(f'md5 mismatch on attempt {attempts}')
+                        success = False
+                        attempts = attempts + 1
+                except Exception as e:
+                    print(f'Warning:\n{e}')
                     success = False
                     attempts = attempts + 1
             # write the file
