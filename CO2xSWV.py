@@ -208,9 +208,9 @@ def make_df(hor, ver, date, site, data_path):
     '''
     # glob the filenames, only one gets globbed for each
     minute = '[0-9]' * 3 + '.' + '[0-9]' * 3 + '.001' 
-    co2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{minute}.*csv')[0]
-    h2o = glob.glob(f'{data_path}/*{site}.DP1.00094.001.{minute}.*csv')[0]
-    t   = glob.glob(f'{data_path}/*{site}.DP1.00041.001.{minute}.*csv')[0]
+    co2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{minute}.*.{date}.*csv')[0]
+    h2o = glob.glob(f'{data_path}/*{site}.DP1.00094.001.{minute}.*.{date}.*csv')[0]
+    t   = glob.glob(f'{data_path}/*{site}.DP1.00041.001.{minute}.*.{date}.*csv')[0]
 
     # make CO2 df
     co2 = pd.read_csv(co2, parse_dates=True, index_col='startDateTime')
