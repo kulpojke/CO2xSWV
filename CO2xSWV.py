@@ -278,6 +278,13 @@ def make_df(hor, ver, date, site, data_path):
 
 
 def viable_hours(sites, data_path):
+    '''Creates dict of information about availabe hours for sites.
+    The dict can be used as input for make_hours_df or print_hours
+    
+    Arguments:
+    sites     -- List   - contains NEON sitecodes, e.g. 'BART'.
+    data_path -- String - path to data.'''
+    
     t0 = time.time()
     lazy = []
     t = t0
@@ -348,6 +355,14 @@ def hours_for_horver(hor, ver, dates, site, data_path):
 
 
 def make_hours_df(metadict):
+    '''Creates a dict showing data availability by sensor
+    Arguments:
+    metadict -- The output of viable_hours
+
+    Returns a dataframe with dateTime index. Each sensor has a 
+    column (naming convention: SITEhorver). Columns contain boolean
+    values corresponding to hours for which the site has data.
+    '''
     lazy = []
     sites = metadict.keys()
     for site in sites:
@@ -361,7 +376,8 @@ def make_hours_df(metadict):
     return(df)
         
 @delayed            
-def make_sensor_df(site, sensor, metadict):        
+def make_sensor_df(site, sensor, metadict):   
+    '''Used by make_hours. Returns a df for single sensor.'''     
     full_sensor = site + sensor.split('_')[0]
     df = pd.DataFrame()
     df['hour'] = metadict[site][sensor]
@@ -372,7 +388,7 @@ def make_sensor_df(site, sensor, metadict):
 
 
 def print_hours(metadict):
-    '''TODO: maybe should find contiguous lengths somehow'''
+    '''Prints how many hours of data each sensor has available.'''
     
     sites = metadict.keys()
     hours = []
