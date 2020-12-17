@@ -220,6 +220,7 @@ def make_df(hor, ver, date, site, data_path):
     # drop columns with bad quality flags
     x = len(co2)
     co2 = co2.loc[co2.finalQF == 0]
+    print(f'dropped {x-len(co2)} bad flags out of {x}')
     # now drop quality metric columns
     qm = [col for col in list(co2.columns) if 'QM' in col]
     qm = qm + [col for col in list(co2.columns) if 'QF' in col] + ['endDateTime']
@@ -236,6 +237,7 @@ def make_df(hor, ver, date, site, data_path):
     # drop columns with bad quality flags
     x = len(h2o)
     h2o = h2o.loc[(h2o.VSWCFinalQF == 0) & (h2o.VSICFinalQF == 0)]
+    print(f'dropped {x-len(h2o)} bad flags out of {x}')
     # now drop quality metric columns
     qm = [col for col in list(h2o.columns) if 'QM' in col]
     qm = qm + [col for col in list(h2o.columns) if 'QF' in col] + ['endDateTime']
@@ -252,6 +254,7 @@ def make_df(hor, ver, date, site, data_path):
     # drop columns with bad quality flags
     x = len(soil_T)
     soil_T = soil_T.loc[soil_T.finalQF == 0]
+    print(f'dropped {x-len(soil_T)} bad flags out of {x}')
     # now drop quality metric columns
     qm = [col for col in list(soil_T.columns) if 'QM' in col]
     qm = qm + [col for col in list(soil_T.columns) if 'QF' in col] + ['endDateTime']
