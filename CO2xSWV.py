@@ -226,6 +226,7 @@ def make_df(hor, ver, date, site, data_path):
     co2.drop(qm, axis='columns', inplace=True)
     #this following step should not be needed, but just in case
     co2.dropna(inplace=True)
+    print(co2.info())
 
     # make H2O df
     h2o = pd.read_csv(h2o, parse_dates=True, index_col='startDateTime')
@@ -241,6 +242,7 @@ def make_df(hor, ver, date, site, data_path):
     h2o.drop(qm, axis='columns', inplace=True)
     #this following step should not be needed, but just in case
     h2o.dropna(inplace=True)
+    print(h2o.info())
 
     # make soil temp df
     soil_T = pd.read_csv(t, parse_dates=True, index_col='startDateTime')
@@ -256,6 +258,7 @@ def make_df(hor, ver, date, site, data_path):
     soil_T.drop(qm, axis='columns', inplace=True)
     #this following step should not be needed, but just in case
     soil_T.dropna(inplace=True)
+    print(soil_T.info())
     
     # merge co2, h2o, soil_T into one df
     l1 = len(co2)
