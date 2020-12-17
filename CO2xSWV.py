@@ -319,7 +319,7 @@ def make_dict_for_site(site, data_path):
 
                 
 def horver_dates(site, hor, ver, data_path):
-    '''retuns dates common to all files at given hor, ver'''
+    '''returns dates common to all files at given hor, ver'''
     #glob the files
     hv = '.'.join([hor, ver])
     co2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{hv}.001.*csv')
@@ -354,14 +354,14 @@ def make_hours_df(metadict):
         hv = list(metadict[site].keys())
         hv.remove('horver')
         for sensor in hv:
-            lazy.append(make_sensor_df(site, sensor))
+            lazy.append(make_sensor_df(site, sensor, metadict))
     dfs = list(dask.compute(*lazy))
     df = pd.concat(dfs, axis='columns')
     df.fillna(value=0, inplace=True)
     return(df)
         
 @delayed            
-def make_sensor_df(site, sensor):        
+def make_sensor_df(site, sensor, metadict):        
     full_sensor = site + sensor.split('_')[0]
     df = pd.DataFrame()
     df['hour'] = metadict[site][sensor]
