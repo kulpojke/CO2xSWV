@@ -3,6 +3,7 @@ import requests
 import hashlib
 import os
 import glob
+import time
 
 from dask import delayed
 import dask
@@ -274,3 +275,113 @@ def make_df(hor, ver, date, site, data_path):
 
 # ------------------------------------------------------------------------------------
 
+
+
+def viable_hours(sites, data_path):
+    t0 = time.time()
+    lazy = []
+    t = t0
+    for site in sites:
+        try:
+            print(f'building delayed objects for {site}...')
+            lazy.append(delayed(make_dict_for_site)(site, data_path))
+            dt = time.time() - t
+            t = time.time()
+            print(f'took {dt/60:.3f} minutes')
+        except: 
+            print(f'{site} failed to make any delayed objects')
+    print('Computing results...')
+    t = time.time()
+    with ProgressBar():
+        metadict = list(dask.compute(*lazy))
+    dt = time.time() - t 
+    print(f'done computing ({dt} seconds).')
+    md = dict()
+    for entry in metadict:
+        md[entry[0]] = entry[1]
+    dt = time.time() - t0
+    print(f'that took {dt/60:.3f} minutes total')
+    return(md)
+    
+
+    
+def make_dict_for_site(site, data_path):
+    '''returns a tuple of site, dict for site'''
+    temp_dict = dict()
+    temp_dict['horver'] = find_HOR_VER(site, data_path)
+    hors = temp_dict['horver'].keys()
+    for hor in hors:
+        vers = temp_dict['horver'][hor]
+        for ver in vers:
+            dates = horver_dates(site, hor, ver, data_path)
+            temp_dict[hor + ver + '_hours'] = hours_for_horver(hor, ver, dates, site, data_path)
+    return((site, temp_dict))
+
+                
+def horver_dates(site, hor, ver, data_path):
+    '''retuns dates common to all files at given hor, ver'''
+    #glob the files
+    hv = '.'.join([hor, ver])
+    co2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{hv}.001.*csv')
+    h2o = glob.glob(f'{data_path}/*{site}.DP1.00094.001.{hv}.001.*csv')
+    t   = glob.glob(f'{data_path}/*{site}.DP1.00041.001.{hv}.001.*csv')
+    # get the dates as sets
+    co2d = set([f.split('.')[-4] for f in co2])
+    h2od = set([f.split('.')[-4] for f in h2o])
+    td   = set([f.split('.')[-4] for f in t])
+    # return the intersection as list
+    return(list(co2d | h2od | td))
+    
+def hours_for_horver(hor, ver, dates, site, data_path):
+    '''retuns list of all hours with full data for hor, ver, site'''
+    dfs = []
+    for date in dates:
+        dfs.append(make_df(hor, ver, date, site, data_path))
+    df = pd.concat(dfs)
+    return(list(df.index))
+
+
+
+# ------------------------------------------------------------------------------------
+
+
+
+
+def make_hours_df(metadict):
+    lazy = []
+    sites = metadict.keys()
+    for site in sites:
+        hv = list(metadict[site].keys())
+        hv.remove('horver')
+        for sensor in hv:
+            lazy.append(make_sensor_df(site, sensor))
+    dfs = list(dask.compute(*lazy))
+    df = pd.concat(dfs, axis='columns')
+    df.fillna(value=0, inplace=True)
+    return(df)
+        
+@delayed            
+def make_sensor_df(site, sensor):        
+    full_sensor = site + sensor.split('_')[0]
+    df = pd.DataFrame()
+    df['hour'] = metadict[site][sensor]
+    truth = [1] * len(metadict[site][sensor])
+    df[full_sensor] = truth
+    df = df.set_index('hour')
+    return(df)
+
+
+def print_hours(metadict):
+    '''TODO: maybe should find contiguous lengths somehow'''
+    
+    sites = metadict.keys()
+    hours = []
+    for site in sites:
+        hv = list(metadict[site].keys())
+        hv.remove('horver')
+        for sensor in hv:
+            l = len(metadict[site][sensor])
+            hours.append([site, sensor.split('_')[0], l])
+    hours.sort(key=lambda x: x[2], reverse=True)
+    for hr in hours:
+        print(f'{hr[0]} - {hr[1]} has {hr[2]} entries')
