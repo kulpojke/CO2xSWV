@@ -17,6 +17,9 @@ from dask.diagnostics import ProgressBar
 
 def fetch_data_from_NEON_API(sitecodes, productcodes, daterange = 'most recent', data_path='/home/jovyan/NEON/CO2xSWV_data'):
     '''TODO: make a docstring for this, and move it to neon_utils when all done.
+    TODO: put sensor positions in its own loop; for site, for product. just use one date so we don't have duplicates
+
+
     
     '''
     base_url = 'https://data.neonscience.org/api/v0/'
@@ -193,7 +196,7 @@ def make_df(hor, ver, date, site, data_path):
     '''Reads  NEON 1 minute cvs for:
            DP1.00094.001  (Soil CO2 concentrations)
            DP1.00041.001  (Soil Temperature)
-           DP1.00095.001  (soil volumetric water content and salintiy)
+           DP1.00095.001  (soil volumetric water content and salinity)
        drops entries with bad finalQF flags,
        drops quality metric columns,
        and returns a  dataframe of merged data.
@@ -204,7 +207,7 @@ def make_df(hor, ver, date, site, data_path):
     ver  -- String - vertical sensor position   (VER in the 
             NEON product readme files).
     date -- String - month of data desired. (yyyy-mm)
-    site -- String - NOEN site code (e.g. 'BART')
+    site -- String - NEON site code (e.g. 'BART')
     data_path -- String - path to data.
     '''
     # glob the filenames, only one gets globbed for each
@@ -284,7 +287,7 @@ def viable_hours(sites, data_path):
     Arguments:
     sites     -- List   - contains NEON sitecodes, e.g. 'BART'.
     data_path -- String - path to data.'''
-    
+
     t0 = time.time()
     lazy = []
     t = t0
