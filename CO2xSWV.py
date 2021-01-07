@@ -4,10 +4,13 @@ import hashlib
 import os
 import glob
 import time
+import dask.dataframe as dd
 
 from dask import delayed
 import dask
 from dask.diagnostics import ProgressBar
+
+
 
 
 # ------------------------------------------------------------------------------------
@@ -104,6 +107,7 @@ def dload(product, site, date, base_url, data_path):
 
 
 def sensor_positions(product, site, date, data_path):
+    '''Downloads sensor position file from NEON API'''
     attempts = 0
     success = False
     while (attempts < 4) & (success == False):
@@ -112,6 +116,8 @@ def sensor_positions(product, site, date, data_path):
         
 
 def download_sensor_positions(product, site, date, data_path):
+    '''Downloads sensor position file from NEON API,
+    used sensor_positions, which includes a some exception handling.'''
     # find the url and name of sensor_positions file
     path = data_path.rstrip('/')
     base_url = 'https://data.neonscience.org/api/v0/'
