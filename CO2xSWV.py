@@ -4,10 +4,13 @@ import hashlib
 import os
 import glob
 import time
+import dask.dataframe as dd
 
 from dask import delayed
 import dask
 from dask.diagnostics import ProgressBar
+
+
 
 
 # ------------------------------------------------------------------------------------
@@ -104,6 +107,7 @@ def dload(product, site, date, base_url, data_path):
 
 
 def sensor_positions(product, site, date, data_path):
+    '''Downloads sensor position file from NEON API'''
     attempts = 0
     success = False
     while (attempts < 4) & (success == False):
@@ -112,6 +116,8 @@ def sensor_positions(product, site, date, data_path):
         
 
 def download_sensor_positions(product, site, date, data_path):
+    '''Downloads sensor position file from NEON API,
+    used sensor_positions, which includes a some exception handling.'''
     # find the url and name of sensor_positions file
     path = data_path.rstrip('/')
     base_url = 'https://data.neonscience.org/api/v0/'
@@ -404,3 +410,105 @@ def print_hours(metadict):
     hours.sort(key=lambda x: x[2], reverse=True)
     for hr in hours:
         print(f'{hr[0]} - {hr[1]} has {hr[2]} entries')
+
+
+# ----------------------------------------------------------------------
+
+def make_ddf_for_horver(hor, ver, dates, site, data_path, verbose=False):
+    '''Returns uncomputed dask df of hourly data for hor, ver, site.
+    Basically this is just a wrapper to loop through make_ddf()'''
+    dfs = []
+    for date in dates:
+        try:
+            dfs.append(make_ddf(hor, ver, date, site, data_path))
+        except IndexError:
+            if verbose: print(f'No file found for {date}')
+    ddf = dd.concat(dfs)
+    return(ddf)
+
+def make_ddf(hor, ver, date, site, data_path):
+    '''Reads  NEON 1 minute cvs for:
+           DP1.00094.001  (Soil CO2 concentrations)
+           DP1.00041.001  (Soil Temperature)
+           DP1.00095.001  (soil volumetric water content and salinity)
+       Drops entries with bad finalQF flags.
+       Drops quality metric columns.
+       Returns an uncomputed dask dataframe of merged data.
+    
+    Arguments:
+    hor  -- String - horizontal sensor position (HOR in the 
+            NEON product readme files).
+    ver  -- String - vertical sensor position   (VER in the 
+            NEON product readme files).
+    date -- String - month of data desired. (yyyy-mm)
+    site -- String - NOEN site code (e.g. 'BART')
+    data_path -- String - path to data.
+    
+    '''
+    # glob the filenames, only one gets globbed for each
+    minute = hor + '.' + ver + '.001'
+    co2 = glob.glob(f'{data_path}/*{site}.DP1.00095.001.{minute}.*.{date}.*csv')[0]
+    h2o = glob.glob(f'{data_path}/*{site}.DP1.00094.001.{minute}.*.{date}.*csv')[0]
+    t   = glob.glob(f'{data_path}/*{site}.DP1.00041.001.{minute}.*.{date}.*csv')[0]
+    
+    # make CO2 ddf
+    co2 = dd.read_csv(co2, parse_dates=True, 
+                      dtype={'soilCO2concentrationNumPts': 'float64'}).set_index('startDateTime')
+    # Fail and pass columns are redundent, we will use the fails
+    drops = [col for col in list(co2.columns) if 'Pass' in col]
+    co2 = co2.drop(drops, axis='columns')
+    # drop columns with bad quality flags
+    co2 = co2.loc[co2.finalQF == 0]
+    # now drop quality metric columns
+    qm = [col for col in list(co2.columns) if 'QM' in col]
+    qm = qm + [col for col in list(co2.columns) if 'QF' in col] + ['endDateTime']
+    co2 = co2.drop(qm, axis='columns')
+    #this following step should not be needed, but just in case
+    co2 = co2.dropna()
+    # make sure npartitions is always the same for future concatination
+    co2 = co2.repartition(npartitions=200)
+    
+    # make H2O ddf
+    h2o = dd.read_csv(h2o, parse_dates=True,
+                     dtype={'VSICNumPts': 'float64',
+                            'VSWCNumPts': 'float64'}).set_index('startDateTime')
+    # Fail and pass columns are redundent, we will use the fails
+    drops = [col for col in list(h2o.columns) if 'Pass' in col]
+    h2o = h2o.drop(drops, axis='columns')
+    # drop columns with bad quality flags
+    h2o = h2o.loc[(h2o.VSWCFinalQF == 0) & (h2o.VSICFinalQF == 0)]
+    # now drop quality metric columns
+    qm = [col for col in list(h2o.columns) if 'QM' in col]
+    qm = qm + [col for col in list(h2o.columns) if 'QF' in col] + ['endDateTime']
+    h2o = h2o.drop(qm, axis='columns')
+    #this following step should not be needed, but just in case
+    h2o = h2o.dropna()
+    # make sure npartitions is always the same for future concatination
+    h2o = h2o.repartition(npartitions=200)
+    
+    # merge the 2 ddfs
+    co2 = co2.merge(h2o, left_index=True, right_index=True)
+    
+    # make H2O ddf
+    soil_T = dd.read_csv(t, parse_dates=True,
+                        dtype={'soilTempNumPts': 'float64'}).set_index('startDateTime')
+    # Fail and pass columns are redundent, we will use the fails
+    drops = [col for col in list(soil_T.columns) if 'Pass' in col]
+    soil_T = soil_T.drop(drops, axis='columns')
+    # drop columns with bad quality flags
+    soil_T = soil_T.loc[soil_T.finalQF == 0]
+    # now drop quality metric columns
+    qm = [col for col in list(soil_T.columns) if 'QM' in col]
+    qm = qm + [col for col in list(soil_T.columns) if 'QF' in col] + ['endDateTime']
+    soil_T = soil_T.drop(qm, axis='columns')
+    #this following step should not be needed, but just in case
+    soil_T = soil_T.dropna()
+    # make sure npartitions is always the same for future concatination
+    soil_T = soil_T.repartition(npartitions=200)
+    
+    # merge the new ddf with the previously merged ddf 
+    co2 = co2.merge(soil_T, left_index=True, right_index=True)
+    
+    return(co2)
+
+    #------------------------------------------------------------------------------
