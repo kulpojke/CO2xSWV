@@ -7,5 +7,7 @@
 !*.sh
 !*.ipynb
 !*.r
+!*.R
 !*.csv
 !*.md
+!plot_links.csv
